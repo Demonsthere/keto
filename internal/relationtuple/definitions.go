@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 
 	rts "github.com/ory/keto/proto/ory/keto/relation_tuples/v1alpha2"
@@ -270,6 +271,9 @@ func (s SubjectID) MarshalJSON() ([]byte, error) {
 }
 
 func (r *InternalRelationTuple) String() string {
+	if r == nil {
+		return "(nil)"
+	}
 	return fmt.Sprintf("%s:%s#%s@%s", r.Namespace, r.Object, r.Relation, r.Subject)
 }
 
@@ -302,6 +306,10 @@ func (r *InternalRelationTuple) FromString(s string) (*InternalRelationTuple, er
 	}
 
 	return r, nil
+}
+
+func InternalFromString(s string) (*InternalRelationTuple, error) {
+	return (&InternalRelationTuple{}).FromString(s)
 }
 
 func (r *InternalRelationTuple) DeriveSubject() *SubjectSet {
@@ -645,6 +653,8 @@ type ManagerWrapper struct {
 	Reg            ManagerProvider
 	PageOpts       []x.PaginationOptionSetter
 	RequestedPages []string
+	// lock is necessary so that GetRelationTuples() is safe for concurrency.
+	requestedPagesLock sync.Mutex
 }
 
 var (
@@ -661,6 +671,8 @@ func NewManagerWrapper(_ *testing.T, reg ManagerProvider, options ...x.Paginatio
 
 func (t *ManagerWrapper) GetRelationTuples(ctx context.Context, query *RelationQuery, options ...x.PaginationOptionSetter) ([]*InternalRelationTuple, string, error) {
 	opts := x.GetPaginationOptions(options...)
+	t.requestedPagesLock.Lock()
+	defer t.requestedPagesLock.Unlock()
 	t.RequestedPages = append(t.RequestedPages, opts.Token)
 	return t.Reg.RelationTupleManager().GetRelationTuples(ctx, query, append(t.PageOpts, options...)...)
 }
