@@ -9,7 +9,8 @@ GO_DEPENDENCIES = golang.org/x/tools/cmd/goimports \
 				  github.com/bufbuild/buf/cmd/buf \
 				  google.golang.org/protobuf/cmd/protoc-gen-go \
 				  google.golang.org/grpc/cmd/protoc-gen-go-grpc \
-				  github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
+				  github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc \
+				  golang.org/x/tools/cmd/stringer
 
 BREW_DEPENDENCIES = protobuf@3.19 \
 					go-swagger@0.29.0 \
@@ -137,3 +138,7 @@ post-release: tools/yq
 		cat docker-compose.yml | yq '.services.keto.image = "oryd/keto:'$$DOCKER_TAG'"' | sponge docker-compose.yml
 		cat docker-compose-mysql.yml | yq '.services.keto-migrate.image = "oryd/keto:'$$DOCKER_TAG'"' | sponge docker-compose-mysql.yml
 		cat docker-compose-postgres.yml | yq '.services.keto-migrate.image = "oryd/keto:'$$DOCKER_TAG'"' | sponge docker-compose-postgres.yml
+
+.PHONY: generate
+generate: .bin/swagger .bin/stringer
+		PATH=$(PWD)/.bin:${PATH} go generate ./...
