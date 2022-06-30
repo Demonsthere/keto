@@ -129,6 +129,11 @@ test-docs-samples:
 		&& \
 		npm test
 
+.PHONY: fuzz-test
+fuzz-test:
+		go test -tags=sqlite -fuzz=FuzzParser -fuzztime=30s ./internal/schema
+
+
 .PHONY: cve-scan
 cve-scan: docker tools/grype
 		grype oryd/keto:latest
