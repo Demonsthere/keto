@@ -10,7 +10,10 @@ GO_DEPENDENCIES = golang.org/x/tools/cmd/goimports \
 				  google.golang.org/protobuf/cmd/protoc-gen-go \
 				  google.golang.org/grpc/cmd/protoc-gen-go-grpc \
 				  github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc \
-				  golang.org/x/tools/cmd/stringer
+				  github.com/ory/cli \
+				  github.com/anchore/grype \
+				  golang.org/x/tools/cmd/stringer \
+				  github.com/mdempsky/go114-fuzz-build
 
 BREW_DEPENDENCIES = protobuf@3.19 \
 					go-swagger@0.29.0 \
@@ -131,8 +134,14 @@ test-docs-samples:
 
 .PHONY: fuzz-test
 fuzz-test:
-		go test -tags=sqlite -fuzz=FuzzParser -fuzztime=30s ./internal/schema
+		go test -tags=sqlite -fuzz=FuzzParser -fuzztime=10s ./internal/schema
 
+.PHONY: libfuzzer-fuzz-test
+libfuzzer-fuzz-test: .bin/go114-fuzz-build
+		mkdir -p .fuzzer
+		.bin/go114-fuzz-build -o ./.fuzzer/parser.a ./internal/schema
+		clang -fsanitize=fuzzer ./.fuzzer/parser.a -o ./.fuzzer/parser
+		./.fuzzer/parser -timeout=1 -max_total_time=10 -use_value_profile
 
 .PHONY: cve-scan
 cve-scan: docker tools/grype
