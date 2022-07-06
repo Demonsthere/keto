@@ -30,6 +30,7 @@ type (
 	}
 
 	// Type aliases for shorter signatures
+
 	RelationTuple = relationtuple.InternalRelationTuple
 	Query         = relationtuple.RelationQuery
 )
@@ -58,10 +59,12 @@ func (e *Engine) checkDirect(
 	// TODO replace by more performant algorithm:
 	// https://github.com/ory/keto/issues/483
 
+	ctx = graph.InitVisited(ctx)
 	g := checkgroup.New(ctx)
 
 	for _, sr := range rels {
-		ctx, wasAlreadyVisited := graph.CheckAndAddVisited(ctx, sr.Subject)
+		var wasAlreadyVisited bool
+		ctx, wasAlreadyVisited = graph.CheckAndAddVisited(ctx, sr.Subject)
 		if wasAlreadyVisited {
 			continue
 		}
@@ -81,7 +84,6 @@ func (e *Engine) checkDirect(
 		}
 
 		g.Add(e.checkOneIndirectionFurther(
-			ctx,
 			requested,
 			&Query{Object: sub.Object, Relation: sub.Relation, Namespace: sub.Namespace},
 			restDepth,
@@ -94,7 +96,6 @@ func (e *Engine) checkDirect(
 }
 
 func (e *Engine) checkOneIndirectionFurther(
-	ctx context.Context,
 	requested *RelationTuple,
 	expandQuery *Query,
 	restDepth int,
@@ -189,7 +190,7 @@ func (e *Engine) checkIsAllowed(ctx context.Context, r *RelationTuple, restDepth
 		Trace("check is allowed")
 
 	g := checkgroup.New(ctx)
-	g.Add(e.checkOneIndirectionFurther(ctx, r,
+	g.Add(e.checkOneIndirectionFurther(r,
 		&Query{
 			Object:    r.Object,
 			Relation:  r.Relation,
@@ -249,7 +250,7 @@ func (e *Engine) checkUsersetRewrite(
 			checks = append(checks, checkgroup.WithEdge(checkgroup.Edge{
 				Tuple: *r,
 				Type:  expand.TupeToUserset,
-			}, e.checkTupleToUserset(ctx, r, c, restDepth)))
+			}, e.checkTupleToUserset(r, c, restDepth)))
 		case *ast.ComputedUserset:
 			checks = append(checks, checkgroup.WithEdge(checkgroup.Edge{
 				Tuple: *r,
@@ -310,7 +311,6 @@ func (e *Engine) checkComputedUserset(
 }
 
 func (e *Engine) checkTupleToUserset(
-	ctx context.Context,
 	r *RelationTuple,
 	userset *ast.TupleToUserset,
 	restDepth int,
